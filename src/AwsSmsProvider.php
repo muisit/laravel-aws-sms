@@ -3,6 +3,9 @@
 namespace NotificationChannels\AwsSms;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Notifications\ChannelManager;
+use Illuminate\Broadcasting\Channel;
 
 class AwsSmsProvider extends ServiceProvider
 {
@@ -11,12 +14,13 @@ class AwsSmsProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->app->when(Channel::class)
-            ->needs(AwsSms::class)
-            ->give(function () {
-                $config = config('broadcasting.connections.awssms');
-                return new AwsSms();
+        $manager = $this->app->make(ChannelManager::class);
+        if ($manager) {
+            $manager->extend('sms', function ($app) {
+                return new AwsSmsChannel(new AwsSms());
             });
+            $manager->channel("sms");
+        }
     }
 
     /**

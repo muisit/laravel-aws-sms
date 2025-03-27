@@ -21,15 +21,11 @@ class AwsSmsMessage
             $this->body = trim($body);
         }
     }
+
     public function setRecipient($recipient)
     {
         $this->recipient = $recipient;
 
         return $this;
-    }
-
-    public function __toString()
-    {
-        return $this->body;
     }
 }

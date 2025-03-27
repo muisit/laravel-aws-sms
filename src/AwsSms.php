@@ -5,6 +5,7 @@ namespace NotificationChannels\AwsSms;
 use Exception;
 use NotificationChannels\AwsSms\Exceptions\CouldNotSendNotification;
 use Aws\Sns\SnsClient;
+use Aws\Pinpoint\PinpointClient;
 
 class AwsSms
 {
@@ -24,18 +25,43 @@ class AwsSms
     public function send(AwsSmsMessage $message)
     {
         try {
-            $sns = new SnsClient([
-                'region' => env('AWS_REGION'),
+            $awsRegion = config('services.ses.region');
+            $awsAccessKeyId = config('services.ses.key');
+            $awsSecretAccessKey = config('services.ses.secret');
+            $topic = config('services.awssms.topic');
+            $type = config('services.awssms.type');
+            $senderid = config('services.awssms.senderid');
+
+            $credentials = [
+                'region' => $awsRegion,
                 'version' => 'latest',
                 'credentials' => [
-                    'key' => env('AWS_ACCESS_KEY_ID'),
-                    'secret' => env('AWS_SECRET_ACCESS_KEY'),
+                    'key' => $awsAccessKeyId,
+                    'secret' => $awsSecretAccessKey,
                 ],
-            ]);
+            ];
+
+            $sns = new SnsClient($credentials);
+
+            $attributes = [
+                'AWS.SNS.SMS.SMSType' => [
+                    'DataType' => 'String',
+                    'StringValue' => $type, // Optional: Choose between 'Transactional' or 'Promotional'
+                ]
+            ];
+            if (!empty($senderid)) {
+                $attributes['AWS.SNS.SMS.SenderID'] = [
+                    'DataType' => 'String',
+                    'StringValue' => $senderid
+                ];
+            }
+
             // publish method of the SnsClient is called to send the SMS message
             $response = $sns->publish([
+                'TopicARN' => $topic,
                 'Message' => $message->body,
                 'PhoneNumber' => $message->recipient,
+                'MessageAttributes' => $attributes
             ]);
             return json_encode($response);
         }

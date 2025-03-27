@@ -12,7 +12,7 @@ class AwsSmsChannel
     private $dispatcher;
     private $client;
 
-    public function __construct(AwsSms $client, Dispatcher $dispatched = null)
+    public function __construct(AwsSms $client, Dispatcher $dispatcher = null)
     {
         $this->client = $client;
         $this->dispatcher = $dispatcher;
@@ -28,20 +28,26 @@ class AwsSmsChannel
      */
     public function send($notifiable, Notification $notification)
     {
-        $message = $notification->toSms($notifiable);
-        if (is_string($message)) {
-            $message = AwsSmsMessage::create($message);
-        }
+        $messages = $notification->toSms($notifiable);
 
-        if ($to = $notifiable->routeNotificationFor('sms', $notification)) {
-            $message->setRecipient($to);
+        if (!is_array($messages)) {
+            if (is_string($messages)) {
+                $messages = AwsSmsMessage::create($messages);
+            }
+            $messages = [$messages];
         }
 
         try {
-            $data = $this->client->send($message);
+            foreach ($messages as $message) {
+                if (empty($message->recipient) && ($to = $notifiable->routeNotificationFor('sms', $notification))) {
+                    $message->setRecipient($to);
+                }
 
-            if ($this->dispatcher !== null) {
-                $this->dispatcher->dispatch('aws-sms', [$notifiable, $notification, $data]);
+                $data = $this->client->send($message);
+
+                if ($this->dispatcher !== null) {
+                    $this->dispatcher->dispatch('aws-sms', [$notifiable, $notification, $data]);
+                }
             }
         }
         catch (CouldNotSendNotification $e) {
