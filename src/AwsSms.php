@@ -40,7 +40,6 @@ class AwsSms
                     'secret' => $awsSecretAccessKey,
                 ],
             ];
-
             $sns = new SnsClient($credentials);
 
             $attributes = [
@@ -57,15 +56,20 @@ class AwsSms
             }
 
             // publish method of the SnsClient is called to send the SMS message
-            $response = $sns->publish([
+            $data = [
                 'TopicARN' => $topic,
                 'Message' => $message->body,
                 'PhoneNumber' => $message->recipient,
                 'MessageAttributes' => $attributes
-            ]);
+            ];
+            $response = $sns->publish($data);
+            if (!empty($response)) {
+                \Log::error(json_encode($response));
+            }
             return json_encode($response);
         }
         catch (Exception $exception) {
+            \Log::error($exception->getMessage());
             throw CouldNotSendNotification::serviceRespondedWithAnError($exception);
         }
     }
